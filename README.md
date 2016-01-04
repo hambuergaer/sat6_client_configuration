@@ -5,7 +5,7 @@ This script will help you to register your RHEL clients to your Satellite 6 serv
 
 #Prerequisites:
 - Firewall ports from Client to Satellite 6, port 80 / 443 must be opened
-- Make sure that you configured at least one hosgroup with lifecycle environment, content view, Puppet environment, Capsule settings, Operating System settings, Locations and Organizations.
+- Make sure that you configured at least one hostgroup with lifecycle environment, content view, Puppet environment, Capsule settings, Operating System settings, Locations and Organizations. Otherwise the "Host" entry will not be created properly.
 
 #Usage:
 ./sat6-register.py --help
