@@ -9,8 +9,10 @@ This script will help you to register your RHEL clients to your Satellite 6 serv
 
 #Usage:
 You need at least the "-s", "-l" and "-p" option to run the script.
-./sat6-register.py --help
 ```
+./sat6-register.py --help
+
+
 Usage: sat6-register.py [options]
 
 Options:
