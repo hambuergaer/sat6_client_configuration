@@ -17,6 +17,11 @@ from uuid import getnode
 #LOGIN = ""
 #PASSWORD = ""
 
+HOSTNAME  = platform.node()
+HEXMAC    = hex(getnode())
+NOHEXMAC  = HEXMAC[2:]
+MAC       = NOHEXMAC.zfill(13)[0:12]
+
 class log:
 	HEADER	= '\033[0;36m'
 	ERROR	= '\033[1;31m'
@@ -33,6 +38,31 @@ def get_json(url):
         request.add_header("Authorization", "Basic %s" % base64string)
         result = urllib2.urlopen(request)
         return json.load(result)
+    except urllib2.URLError, e:
+        print "Error: cannot connect to the API: %s" % (e)
+        print "Check your URL & try to login using the same user/pass via the WebUI and check the error!"
+        sys.exit(1)
+    except:
+        print "FATAL Error - %s" % (e)
+        sys.exit(2)
+
+def post_json(url, jdata):
+        # Generic function to HTTP PUT JSON to Satellite's API.
+        # Had to use a couple of hacks to urllib2 to make it
+        # support an HTTP PUT, which it doesn't by default.
+
+    try:
+        opener = urllib2.build_opener(urllib2.HTTPHandler)
+        request = urllib2.Request(url)
+        base64string = base64.encodestring('%s:%s' % (LOGIN, PASSWORD)).strip()
+        request.add_data(json.dumps(jdata))
+        request.add_header("Authorization", "Basic %s" % base64string)
+        request.add_header("Content-Type", "application/json")
+        request.add_header("Accept", "application/json")
+        #request.get_method = lambda: 'PUT'
+        request.get_method = lambda: 'POST'
+        url = opener.open(request)
+
     except urllib2.URLError, e:
         print "Error: cannot connect to the API: %s" % (e)
         print "Check your URL & try to login using the same user/pass via the WebUI and check the error!"
@@ -59,6 +89,24 @@ def return_organization_id(orgname):
                 	org_id = orgid['id']
 			return org_id
 
+def return_location_name():
+        myurl = "https://" + SAT6_FQDN+ "/api/v2/locations/"
+        locations = get_json(myurl)
+        loc_name = []
+        for loc in locations['results']:
+                name = str(loc['name'])
+                loc_name.append(name)
+        return loc_name
+
+def return_location_id(location):
+	myurl = "https://" + SAT6_FQDN+ "/api/v2/locations/"
+        locations = get_json(myurl)
+        loc_id = ''
+	for locid in locations['results']:
+		if str(locid['name']) == location:
+			loc_id = locid['id']
+			return loc_id
+
 def return_organization_label(orgname):
         myurl = 'https://' + SAT6_FQDN + '/katello/api/v2/organizations/' + str(orgname) + '/'
         orglabel = get_json(myurl)
@@ -68,11 +116,20 @@ def return_organization_label(orgname):
 def return_hostgroups():
 	myurl = "https://" + SAT6_FQDN+ "/api/v2/hostgroups/"
 	hostgroups = get_json(myurl)
+	hg_name = []
 	for hg in hostgroups['results']:
-        	hg_id = str(hg['id'])
-		hg_name = str(hg['name'])
-		hg_parent = str(hg['title'])
-		print "Hostgroup name: " + hg_name + ", Hostgroup ID: " + hg_id + " Parent: " + hg_parent
+		name = str(hg['name']) + " \t\t(parent: " + str(hg['title'] + ")")
+		hg_name.append(name)
+	return hg_name
+
+def return_hostgroup_id(hostgroup):
+	myurl = "https://" + SAT6_FQDN+ "/api/v2/hostgroups/"
+        hostgroups = get_json(myurl)
+        hg_id = ''
+	for hgid in hostgroups['results']:
+                if str(hgid['name']) == hostgroup:
+                        hg_id = hgid['id']
+                        return hg_id
 
 def return_capsule_name():
 	myurl = "https://" + SAT6_FQDN+ "/katello/api/capsules/"
@@ -122,6 +179,61 @@ def check_subscription_manager_status():
 	else:
 		return 1
 
+def install_needed_packages():
+	#cmd_yum = "/usr/bin/yum install -y facter katello-agent puppet rubygem-hammer_cli rubygem-hammer_cli_katello --nogpgcheck"
+	cmd_yum = "/usr/bin/yum install -y facter katello-agent puppet --nogpgcheck"
+	#print log.INFO + "INFO: Installing some needed packages: facter katello-agent puppet rubygem-hammer_cli rubygem-hammer_cli_katello" + log.END
+	print log.INFO + "INFO: Installing some needed packages: facter katello-agent puppet" + log.END
+        try:
+                subprocess.call(cmd_yum, shell=True, stdout=subprocess.PIPE)
+                print log.INFO + "INFO: Packages sucessfully installed." + log.END
+	except:
+                print log.ERROR + "ERROR: failed to install packages. EXIT." + log.END
+                sys.exit(1)
+
+def create_new_host(hostgroup,location,organization):
+        orgid = return_organization_id(organization)
+	locid = return_location_id(location)
+	hgid = return_hostgroup_id(hostgroup)
+	'''
+	install_needed_packages()
+	#print "hostname: " + str(HOSTNAME) + "hostgroup_id: " + str(hgid) , " organization_id: " + str(orgid) + " location_id: " + str(locid) +  " mac: " + str(MAC)
+	cmd_create_host = "/usr/bin/hammer --server https://" + str(SAT6_FQDN) + " --username " + str(LOGIN) + " --password " + str(PASSWORD) + " host create --name " + str(HOSTNAME) + " --location-id " + str(locid) + " --organization-id " + str(orgid) + " --hostgroup-id " + str(hgid) + " --mac " + str(MAC) + " --build 0"
+	#print cmd_create_host
+        try:
+		subprocess.call(cmd_create_host, shell=True, stdout=subprocess.PIPE)
+
+        except:
+                print log.ERROR + "ERROR: failed to install packages. EXIT." + log.END
+                sys.exit(1)
+
+	'''
+	jsondata = json.loads('{"host": {"name": "%s","hostgroup_id": %s,"organization_id": %s,"location_id": %s,"mac":"%s"}}' % (HOSTNAME,hgid,orgid,locid,MAC))
+	#print jsondata
+	myurl = "https://" + SAT6_FQDN + "/api/v2/hosts/"
+	#print myurl
+	print log.INFO + "INFO: Calling Satellite API to create a host entry assoicated with the group, org & location" + log.END
+	post_json(myurl,jsondata)
+	print log.INFO + "INFO: Successfully created host %s" % HOSTNAME + log.END
+
+def configure_puppet():
+	cmd_puppet_01 = "/usr/bin/puppet config set --section agent report true"
+	cmd_puppet_02 = "/usr/bin/puppet config set --section agent ignoreschedules true"
+	cmd_puppet_03 = "/usr/bin/puppet config set --section agent daemon false"
+	cmd_puppet_04 = "/usr/bin/puppet config set --section agent listen true"
+	cmd_puppet_05 = "/usr/bin/puppet config set --section agent ca_server " + str(SAT6_FQDN)
+	cmd_puppet_06 = "/usr/bin/puppet config set --section agent server " + str(SAT6_FQDN)
+	try:
+                subprocess.call(cmd_puppet_01, shell=True, stdout=subprocess.PIPE)
+                subprocess.call(cmd_puppet_02, shell=True, stdout=subprocess.PIPE)
+                subprocess.call(cmd_puppet_03, shell=True, stdout=subprocess.PIPE)
+                subprocess.call(cmd_puppet_04, shell=True, stdout=subprocess.PIPE)
+                subprocess.call(cmd_puppet_05, shell=True, stdout=subprocess.PIPE)
+                subprocess.call(cmd_puppet_06, shell=True, stdout=subprocess.PIPE)
+		print log.INFO + "INFO: Puppet client configuration successfully changed." + log.END
+	except:
+                print log.ERROR + "ERROR: failed to configure Puppet agent. EXIT." + log.END
+                sys.exit(1)	
 
 ################################## OPTIONS PARSER AND VARIABLES ##################################
 
@@ -131,7 +243,7 @@ parser.add_option("-l", "--login", dest="login", default='admin', help="Login us
 parser.add_option("-p", "--password", dest="password", help="Password for specified user. Will prompt if omitted", metavar="PASSWORD")
 parser.add_option("-a", "--activationkey", dest="activationkey", help="Activation Key to register the system", metavar="ACTIVATIONKEY")
 parser.add_option("-g", "--hostgroup", dest="hostgroup", help="Label of the Hostgroup in Satellite that the host is to be associated with", metavar="HOSTGROUP")
-parser.add_option("-L", "--location", dest="location", default='Default_Location', help="Label of the Location in Satellite that the host is to be associated with", metavar="HOSTGROUP")
+parser.add_option("-L", "--location", dest="location", default='Default_Location', help="Label of the Location in Satellite that the host is to be associated with", metavar="LOCATION")
 parser.add_option("-o", "--organization", dest="organization", default='Default_Organization', help="Label of the Organization in Satellite that the host is to be associated with", metavar="ORGANIZATION")
 parser.add_option("-v", "--verbose", dest="verbose", action="store_true", help="Verbose output")
 (options, args) = parser.parse_args()
@@ -161,13 +273,8 @@ if not PASSWORD:
 if VERBOSE:
     print "HOSTNAME - %s" % HOSTNAME
     print "MAC - %s" % MAC
-    print "SAT6_FQDN - %s" % SAT6_FQDN
-    print "LOGIN - %s" % LOGIN
-    print "PASSWORD - %s" % PASSWORD
-    print "HOSTGROUP - %s" % HOSTGROUP
-    print "LOCATION - %s" % LOCATION
-    print "ORG - %s" % ORG
-    print "ACTIVATIONKEY - %s" % ACTIVATIONKEY
+    print "HEXMAC - %s" % HEXMAC
+    print "NOHEXMAC - %s" % NOHEXMAC
 
 
 ################################## MAIN ##################################
@@ -200,6 +307,24 @@ while not ORGANIZATION:
 	print log.WARN + "You must select an organization where your host will be assigned to." + log.END 
 	ORGANIZATION = raw_input(log.INFO + "Select an appropriate organization:\n" + log.END) 
 
+# Select location
+print log.INFO + "Available locations:" + log.END
+for loc in return_location_name():
+        print "-> " + loc
+LOCATION = raw_input(log.INFO + "Select an appropriate location: " + log.END)
+while not LOCATION:
+        print log.WARN + "You must select an location where your host will be assigned to." + log.END
+        LOCATION = raw_input(log.INFO + "Select an appropriate location:\n" + log.END)
+
+# Select hostgroup
+print log.INFO + "Available hostgroups:" + log.END
+for hg in return_hostgroups():
+	print "-> " + hg
+HOSTGROUP = raw_input(log.INFO + "Select an appropriate hostgroup: " + log.END)
+while not HOSTGROUP:
+        print log.WARN + "You must select a hostgroup where your host will be assigned to." + log.END
+        HOSTGROUP = raw_input(log.INFO + "Select an appropriate hostgroup:\n" + log.END)
+
 ## Select a Capsule server where the client should be registered.
 print log.INFO + "Capsule servers:" + log.END
 for cap in return_capsule_name():
@@ -229,17 +354,27 @@ print log.SUMM + 30*"#" + log.END
 
 print log.INFO + "Please verify the your choices:"
 print log.WARN + "Organization:\t" + log.END + ORGANIZATION
+print log.WARN + "Location:\t" + log.END + LOCATION
 print log.WARN + "Capsule:\t" + log.END + CAPSULE 
 print log.WARN + "Activationkey:\t" + log.END + SELECT_ACKTKEY
+print log.WARN + "Hostgroup:\t" + log.END + HOSTGROUP
 SUMMARY = raw_input(log.INFO + "Are your settings correct (y/n)? : " + log.END)
 while not SUMMARY:
 	print log.WARN + "You must either type y/Y or n/N." + log.END
 if SUMMARY == "y" or SUMMARY == "Y":
 	print "\n"
+
 	# Registering system at give destination
 	print log.INFO + "INFO: Registering client at your destination " + CAPSULE
 	ORGLABEL=return_organization_label(ORGANIZATION)
 	register_system(CAPSULE,SELECT_ACKTKEY,ORGLABEL)
+	
+	# Create new host entry
+	print log.INFO + "INFO: creating new host entry on Satellite server." + log.END
+	create_new_host(HOSTGROUP,LOCATION,ORGANIZATION)
+	
+	# Configure Puppet agent
+	configure_puppet()
 	
 	# Updating the box?
 	UPDATE = raw_input(log.INFO + "Do you want to Update your system (y/n)? : " + log.END)
