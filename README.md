@@ -1,7 +1,7 @@
 # sat6_client_configuration
 
 #Description:
-This script will help you to register your RHEL clients to your Satellite 6 server. This script also creates "Host" entries and configures the Puppet agent if needed. Unfortunately the given values are not selectable at the moment so you need to copy/paste the values if for example you are asked to select the organization your client should be assigned to.
+This script will help you to register your RHEL clients to your Satellite 6 server. This script also creates "Host" entries and configures the Puppet agent if needed. Unfortunately the given values are not selectable at the moment so you need to copy/paste the values if for example you are asked to select the organization your client should be assigned to. If you want to run this script unattended then you need to add ALL options mentioned in the script usage before using the "-u" flag. If you do not pass all values the script will ask you for the remaining. 
 
 #Prerequisites:
 - Firewall ports from Client to Satellite 6, port 80 / 443 must be opened
@@ -12,13 +12,14 @@ You need at least the "-s", "-l" and "-p" option to run the script.
 ```
 ./sat6-register.py --help
 
-
 Usage: sat6-register.py [options]
 
 Options:
   -h, --help            show this help message and exit
   -s SAT6_FQDN, --server=SAT6_FQDN
                         FQDN of Satellite - omit https://
+  -c CAPSULE, --capsule=CAPSULE
+                        FQDN of Capsule - omit https://
   -l LOGIN, --login=LOGIN
                         Login user for API Calls
   -p PASSWORD, --password=PASSWORD
@@ -34,6 +35,9 @@ Options:
   -o ORGANIZATION, --organization=ORGANIZATION
                         Label of the Organization in Satellite that the host
                         is to be associated with
+  -u, --unattended      Start unattended installation.
   -v, --verbose         Verbose output
+
+Example usage: ./sat6-register.py -l admin -p password -s satellite.example.com
 ```
 
