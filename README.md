@@ -5,6 +5,7 @@ This script will help you to register your RHEL clients to your Satellite 6 serv
 ```
 Warning: Local environment: "production" doesn't match server specified node environment [...]
 ```
+This script was inspired by https://github.com/sideangleside/sat6-bootstrap
 
 #Prerequisites:
 - Firewall ports from Client to Satellite 6, port 80 / 443 must be opened
