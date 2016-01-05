@@ -13,7 +13,7 @@ This script was inspired by https://github.com/sideangleside/sat6-bootstrap
 - Change number of entries per page to >= 100 in Satellite 6 Web-UI: 'Administer -> Settings -> General -> entries_per_page'. This number depends on for example how many hostgroups, activation keys etc. are configured in your Satellite environment.
 
 #Usage:
-You need at least the "-s", "-l" and "-p" option to run the script.
+You need at least the "-s" and "-l" option to run the script.
 ```
 ./sat6-register.py --help
 
