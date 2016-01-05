@@ -221,8 +221,8 @@ def configure_puppet():
 	cmd_puppet_02 = "/usr/bin/puppet config set --section agent ignoreschedules true"
 	cmd_puppet_03 = "/usr/bin/puppet config set --section agent daemon false"
 	cmd_puppet_04 = "/usr/bin/puppet config set --section agent listen true"
-	cmd_puppet_05 = "/usr/bin/puppet config set --section agent ca_server " + str(SAT6_FQDN)
-	cmd_puppet_06 = "/usr/bin/puppet config set --section agent server " + str(SAT6_FQDN)
+	cmd_puppet_05 = "/usr/bin/puppet config set --section agent ca_server " + str(CAPSULE)
+	cmd_puppet_06 = "/usr/bin/puppet config set --section agent server " + str(CAPSULE)
 	try:
                 subprocess.call(cmd_puppet_01, shell=True, stdout=subprocess.PIPE)
                 subprocess.call(cmd_puppet_02, shell=True, stdout=subprocess.PIPE)
@@ -235,37 +235,54 @@ def configure_puppet():
                 print log.ERROR + "ERROR: failed to configure Puppet agent. EXIT." + log.END
                 sys.exit(1)	
 
+def initial_puppet_run():
+	cmd = "/usr/bin/puppet agent -t -v --onetime --waitforcert 60"
+	print log.WARN + "INFO: start initial Puppet run. Please visit your Satellite or Capsule server to sign the Puppet client cert request."
+	try:
+		subprocess.call(cmd, shell=True, stdout=subprocess.PIPE)
+		print log.INFO + "INFO: successfully performed initial Puppet run."
+	except:
+		print log.ERROR + "ERROR: failed to start initial Puppet agent run."
+
 ################################## OPTIONS PARSER AND VARIABLES ##################################
 
 parser = OptionParser()
 parser.add_option("-s", "--server", dest="sat6_fqdn", help="FQDN of Satellite - omit https://", metavar="SAT6_FQDN")
-parser.add_option("-l", "--login", dest="login", default='admin', help="Login user for API Calls", metavar="LOGIN")
+parser.add_option("-c", "--capsule", dest="capsule", help="FQDN of Capsule - omit https://", metavar="CAPSULE")
+parser.add_option("-l", "--login", dest="login", help="Login user for API Calls", metavar="LOGIN")
 parser.add_option("-p", "--password", dest="password", help="Password for specified user. Will prompt if omitted", metavar="PASSWORD")
 parser.add_option("-a", "--activationkey", dest="activationkey", help="Activation Key to register the system", metavar="ACTIVATIONKEY")
 parser.add_option("-g", "--hostgroup", dest="hostgroup", help="Label of the Hostgroup in Satellite that the host is to be associated with", metavar="HOSTGROUP")
-parser.add_option("-L", "--location", dest="location", default='Default_Location', help="Label of the Location in Satellite that the host is to be associated with", metavar="LOCATION")
-parser.add_option("-o", "--organization", dest="organization", default='Default_Organization', help="Label of the Organization in Satellite that the host is to be associated with", metavar="ORGANIZATION")
+parser.add_option("-L", "--location", dest="location", help="Label of the Location in Satellite that the host is to be associated with", metavar="LOCATION")
+parser.add_option("-o", "--organization", dest="organization", help="Label of the Organization in Satellite that the host is to be associated with", metavar="ORGANIZATION")
+parser.add_option("-u", "--unattended", dest="unattended", action="store_true", help="Start unattended installation.")
 parser.add_option("-v", "--verbose", dest="verbose", action="store_true", help="Verbose output")
 (options, args) = parser.parse_args()
 
 if not ( options.sat6_fqdn and options.login):
     print log.ERROR + "You must specify at least server and login parameter. See usage:\n" + log.END
     parser.print_help()
-    print "\nExample usage: ./bootstrap.py -l admin -s satellite.example.com -o Default_Organization -L Default_Location -g My_Hostgroup -a My_Activation_Key"
+    print "\nExample usage: ./sat6-register.py -l admin -p password -s satellite.example.com"
     sys.exit(1)
 else:
     SAT6_FQDN = options.sat6_fqdn
+    CAPSULE   = options.capsule
     LOGIN     = options.login
     PASSWORD  = options.password
     HOSTGROUP = options.hostgroup
     LOCATION  = options.location
     ORGANIZATION  = options.organization
     ACTIVATIONKEY = options.activationkey
-
+    
 if options.verbose:
     VERBOSE=True
 else:
     VERBOSE=False
+
+if options.unattended:
+    UNATTENDED=True
+else:
+    UNATTENDED=False
 
 if not PASSWORD:
         PASSWORD = getpass.getpass("%s's password:" % LOGIN)
@@ -275,6 +292,12 @@ if VERBOSE:
     print "MAC - %s" % MAC
     print "HEXMAC - %s" % HEXMAC
     print "NOHEXMAC - %s" % NOHEXMAC
+    print "ORGANIZATION - %s" % ORGANIZATION
+    print "CAPSULE - %s" % CAPSULE
+    print "HOSTGROUP - %s" % HOSTGROUP
+    print "LOCATION - %s" % LOCATION
+    print "SAT6_FQDN - %s" % SAT6_FQDN
+    print "ACTIVATIONKEY - %s" % ACTIVATIONKEY
 
 
 ################################## MAIN ##################################
@@ -299,54 +322,56 @@ else:
 	print log.INFO + "INFO: Your system in not registerd to any Satellite yet. Will do it now." + log.END
 
 ## Select an organization
-print log.INFO + "Available organizations:" + log.END
-for org in return_organization_name():
-	print "-> " + org
-ORGANIZATION = raw_input(log.INFO + "Select an appropriate organization: " + log.END)
-while not ORGANIZATION:
-	print log.WARN + "You must select an organization where your host will be assigned to." + log.END 
-	ORGANIZATION = raw_input(log.INFO + "Select an appropriate organization:\n" + log.END) 
+if not ORGANIZATION:
+	print log.INFO + "Available organizations:" + log.END
+	for org in return_organization_name():
+		print "-> " + org
+	ORGANIZATION = raw_input(log.INFO + "Select an appropriate organization: " + log.END)
+	while not ORGANIZATION:
+		print log.WARN + "You must select an organization where your host will be assigned to." + log.END 
+		ORGANIZATION = raw_input(log.INFO + "Select an appropriate organization:\n" + log.END) 
 
 # Select location
-print log.INFO + "Available locations:" + log.END
-for loc in return_location_name():
-        print "-> " + loc
-LOCATION = raw_input(log.INFO + "Select an appropriate location: " + log.END)
-while not LOCATION:
-        print log.WARN + "You must select an location where your host will be assigned to." + log.END
-        LOCATION = raw_input(log.INFO + "Select an appropriate location:\n" + log.END)
+if not LOCATION:
+	print log.INFO + "Available locations:" + log.END
+	for loc in return_location_name():
+        	print "-> " + loc
+	LOCATION = raw_input(log.INFO + "Select an appropriate location: " + log.END)
+	while not LOCATION:
+        	print log.WARN + "You must select an location where your host will be assigned to." + log.END
+        	LOCATION = raw_input(log.INFO + "Select an appropriate location:\n" + log.END)
 
 # Select hostgroup
-print log.INFO + "Available hostgroups:" + log.END
-for hg in return_hostgroups():
-	print "-> " + hg
-HOSTGROUP = raw_input(log.INFO + "Select an appropriate hostgroup: " + log.END)
-while not HOSTGROUP:
-        print log.WARN + "You must select a hostgroup where your host will be assigned to." + log.END
-        HOSTGROUP = raw_input(log.INFO + "Select an appropriate hostgroup:\n" + log.END)
+if not HOSTGROUP:
+	print log.INFO + "Available hostgroups:" + log.END
+	for hg in return_hostgroups():
+		print "-> " + hg
+	HOSTGROUP = raw_input(log.INFO + "Select an appropriate hostgroup: " + log.END)
+	while not HOSTGROUP:
+        	print log.WARN + "You must select a hostgroup where your host will be assigned to." + log.END
+        	HOSTGROUP = raw_input(log.INFO + "Select an appropriate hostgroup:\n" + log.END)
 
 ## Select a Capsule server where the client should be registered.
-print log.INFO + "Capsule servers:" + log.END
-for cap in return_capsule_name():
-	print "-> " + cap
-CAPSULE = raw_input(log.INFO + "Select a Capsule where you want to register your client: " + log.END)
-while not CAPSULE:
-	print log.WARN + "You must select a Capsules server." + log.END
+if not CAPSULE:
+	print log.INFO + "Capsule servers:" + log.END
+	for cap in return_capsule_name():
+		print "-> " + cap
 	CAPSULE = raw_input(log.INFO + "Select a Capsule where you want to register your client: " + log.END)
+	while not CAPSULE:
+		print log.WARN + "You must select a Capsules server." + log.END
+		CAPSULE = raw_input(log.INFO + "Select a Capsule where you want to register your client: " + log.END)
 
 ## Select Activationkey for given organization
-print log.INFO + "Will now check for available Activation Keys. This could take some time..." + log.END
-ORGID = return_organization_id(ORGANIZATION)
-ACTKEYS = return_activation_key_name(ORGID)
-for key in ACTKEYS:
-	print "-> " + key
-SELECT_ACKTKEY = raw_input(log.INFO + "Select appropriate Activationkey: " + log.END)
-#while not SELECT_ACKTKEY:
-#	print log.WARN + "You must select an Activationkey." + log.END
-#	SELECT_ACKTKEY = raw_input(log.INFO + "Select appropriate Activationkey: " + log.END)
+if not ACTIVATIONKEY:
+	print log.INFO + "Will now check for available Activation Keys. This could take some time..." + log.END
+	ORGID = return_organization_id(ORGANIZATION)
+	ACTKEYS = return_activation_key_name(ORGID)
+	for key in ACTKEYS:
+		print "-> " + key
+	ACTIVATIONKEY = raw_input(log.INFO + "Select appropriate Activationkey: " + log.END)
 
 ## Print summary and start tasks
-print log.SUMM + "\n\n" + 30*"#" + log.END
+print log.SUMM + "\n" + 30*"#" + log.END
 print log.SUMM + "#" + log.END
 print log.SUMM + "# SUMMARY"
 print log.SUMM + "#" + log.END
@@ -356,8 +381,31 @@ print log.INFO + "Please verify the your choices:"
 print log.WARN + "Organization:\t" + log.END + ORGANIZATION
 print log.WARN + "Location:\t" + log.END + LOCATION
 print log.WARN + "Capsule:\t" + log.END + CAPSULE 
-print log.WARN + "Activationkey:\t" + log.END + SELECT_ACKTKEY
+print log.WARN + "Activationkey:\t" + log.END + ACTIVATIONKEY
 print log.WARN + "Hostgroup:\t" + log.END + HOSTGROUP
+
+if UNATTENDED:
+	# Registering system at give destination
+        print log.INFO + "INFO: Registering client at your destination " + CAPSULE
+        ORGLABEL=return_organization_label(ORGANIZATION)
+        register_system(CAPSULE,ACTIVATIONKEY,ORGLABEL)
+
+        # Create new host entry
+        print log.INFO + "INFO: creating new host entry on Satellite server." + log.END
+        create_new_host(HOSTGROUP,LOCATION,ORGANIZATION)
+
+	# Install needed packages
+	install_needed_packages()
+
+        # Configure Puppet agent
+        configure_puppet()
+	
+	# Start Puppet agent client cert request
+	initial_puppet_run()
+	
+	print log.INFO + "FINISHED: registration and configuration of your Satellite 6 client successfullly finished." + log.END
+	sys.exit(0)
+
 SUMMARY = raw_input(log.INFO + "Are your settings correct (y/n)? : " + log.END)
 while not SUMMARY:
 	print log.WARN + "You must either type y/Y or n/N." + log.END
@@ -367,14 +415,20 @@ if SUMMARY == "y" or SUMMARY == "Y":
 	# Registering system at give destination
 	print log.INFO + "INFO: Registering client at your destination " + CAPSULE
 	ORGLABEL=return_organization_label(ORGANIZATION)
-	register_system(CAPSULE,SELECT_ACKTKEY,ORGLABEL)
+	register_system(CAPSULE,ACTIVATIONKEY,ORGLABEL)
 	
 	# Create new host entry
 	print log.INFO + "INFO: creating new host entry on Satellite server." + log.END
 	create_new_host(HOSTGROUP,LOCATION,ORGANIZATION)
 	
+	# Install needed packages
+	install_needed_packages()
+	
 	# Configure Puppet agent
 	configure_puppet()
+	
+	# Start Puppet agent client cert request
+	initial_puppet_run()
 	
 	# Updating the box?
 	UPDATE = raw_input(log.INFO + "Do you want to Update your system (y/n)? : " + log.END)
@@ -389,6 +443,3 @@ if SUMMARY == "n" or SUMMARY == "N":
 	sys.exit(0)
 else:
 	sys.exit(1)
-
-#return_hostgroups()
-
