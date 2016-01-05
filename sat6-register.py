@@ -1,5 +1,32 @@
 #!/usr/bin/python
 #
+#####################################################################################
+# Scriptname	: sat6-register.py
+# Scriptauthor	: Frank Reimer
+# Creation date	: 2016-01-05
+# License	: GPL v. 3
+#
+# This script was inspired by https://github.com/sideangleside/sat6-bootstrap
+#
+#####################################################################################
+#
+# Description:
+#
+# This script will help you to register your RHEL clients to your Satellite 6 server.
+# This script also creates "Host" entries and configures the Puppet agent if needed.
+# Unfortunately the given values are not selectable at the moment so you need to
+# copy/paste the values if for example you are asked to select the organization your
+# client should be assigned to. If you want to run this script unattended then you
+# need to add ALL options mentioned in the script usage before using the "-u" flag.
+# If you do not pass all values the script will ask you for the remaining. If you
+# also want to update your system you can pass by the option "-U". Please ignore the
+# following message during the first Puppet run:
+#
+# Warning: Local environment: "production" doesn't match server specified node
+# environment [...]
+#
+#####################################################################################
+
 import json
 import getpass
 import urllib2
@@ -12,10 +39,6 @@ import os.path
 from datetime import datetime
 from optparse import OptionParser
 from uuid import getnode
-
-#SAT6_FQDN = ""
-#LOGIN = ""
-#PASSWORD = ""
 
 HOSTNAME  = platform.node()
 HEXMAC    = hex(getnode())
@@ -47,10 +70,6 @@ def get_json(url):
         sys.exit(2)
 
 def post_json(url, jdata):
-        # Generic function to HTTP PUT JSON to Satellite's API.
-        # Had to use a couple of hacks to urllib2 to make it
-        # support an HTTP PUT, which it doesn't by default.
-
     try:
         opener = urllib2.build_opener(urllib2.HTTPHandler)
         request = urllib2.Request(url)
@@ -180,9 +199,7 @@ def check_subscription_manager_status():
 		return 1
 
 def install_needed_packages():
-	#cmd_yum = "/usr/bin/yum install -y facter katello-agent puppet rubygem-hammer_cli rubygem-hammer_cli_katello --nogpgcheck"
 	cmd_yum = "/usr/bin/yum install -y facter katello-agent puppet --nogpgcheck"
-	#print log.INFO + "INFO: Installing some needed packages: facter katello-agent puppet rubygem-hammer_cli rubygem-hammer_cli_katello" + log.END
 	print log.INFO + "INFO: Installing some needed packages: facter katello-agent puppet" + log.END
         try:
                 subprocess.call(cmd_yum, shell=True, stdout=subprocess.PIPE)
@@ -195,23 +212,8 @@ def create_new_host(hostgroup,location,organization):
         orgid = return_organization_id(organization)
 	locid = return_location_id(location)
 	hgid = return_hostgroup_id(hostgroup)
-	'''
-	install_needed_packages()
-	#print "hostname: " + str(HOSTNAME) + "hostgroup_id: " + str(hgid) , " organization_id: " + str(orgid) + " location_id: " + str(locid) +  " mac: " + str(MAC)
-	cmd_create_host = "/usr/bin/hammer --server https://" + str(SAT6_FQDN) + " --username " + str(LOGIN) + " --password " + str(PASSWORD) + " host create --name " + str(HOSTNAME) + " --location-id " + str(locid) + " --organization-id " + str(orgid) + " --hostgroup-id " + str(hgid) + " --mac " + str(MAC) + " --build 0"
-	#print cmd_create_host
-        try:
-		subprocess.call(cmd_create_host, shell=True, stdout=subprocess.PIPE)
-
-        except:
-                print log.ERROR + "ERROR: failed to install packages. EXIT." + log.END
-                sys.exit(1)
-
-	'''
 	jsondata = json.loads('{"host": {"name": "%s","hostgroup_id": %s,"organization_id": %s,"location_id": %s,"mac":"%s"}}' % (HOSTNAME,hgid,orgid,locid,MAC))
-	#print jsondata
 	myurl = "https://" + SAT6_FQDN + "/api/v2/hosts/"
-	#print myurl
 	print log.INFO + "INFO: Calling Satellite API to create a host entry assoicated with the group, org & location" + log.END
 	post_json(myurl,jsondata)
 	print log.INFO + "INFO: Successfully created host %s" % HOSTNAME + log.END
