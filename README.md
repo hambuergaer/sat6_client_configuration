@@ -10,6 +10,7 @@ This script was inspired by https://github.com/sideangleside/sat6-bootstrap
 #Prerequisites:
 - Firewall ports from Client to Satellite 6, port 80 / 443 must be opened
 - Make sure that you configured at least one hostgroup with lifecycle environment, content view, Puppet environment, Puppet classes (if available), Capsule settings, Operating System settings, Locations and Organizations. Otherwise the "Host" entry will not be created properly.
+- Change number of entries per page to >= 100 in Satellite 6 Web-UI: 'Administer -> Settings -> General -> entries_per_page'. This number depends on for example how many hostgroups, activation keys etc. are configured in your Satellite environment.
 
 #Usage:
 You need at least the "-s", "-l" and "-p" option to run the script.
