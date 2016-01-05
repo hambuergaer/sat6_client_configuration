@@ -1,7 +1,10 @@
 # sat6_client_configuration
 
 #Description:
-This script will help you to register your RHEL clients to your Satellite 6 server. This script also creates "Host" entries and configures the Puppet agent if needed. Unfortunately the given values are not selectable at the moment so you need to copy/paste the values if for example you are asked to select the organization your client should be assigned to. If you want to run this script unattended then you need to add ALL options mentioned in the script usage before using the "-u" flag. If you do not pass all values the script will ask you for the remaining. 
+This script will help you to register your RHEL clients to your Satellite 6 server. This script also creates "Host" entries and configures the Puppet agent if needed. Unfortunately the given values are not selectable at the moment so you need to copy/paste the values if for example you are asked to select the organization your client should be assigned to. If you want to run this script unattended then you need to add ALL options mentioned in the script usage before using the "-u" flag. If you do not pass all values the script will ask you for the remaining. If you also want to update your system you can pass by the option "-U". Please ignore the following message during the first Puppet run:
+```
+Warning: Local environment: "production" doesn't match server specified node environment [...]
+```
 
 #Prerequisites:
 - Firewall ports from Client to Satellite 6, port 80 / 443 must be opened
@@ -36,6 +39,7 @@ Options:
                         Label of the Organization in Satellite that the host
                         is to be associated with
   -u, --unattended      Start unattended installation.
+  -U, --update          Performs yum update -y.
   -v, --verbose         Verbose output
 
 Example usage: ./sat6-register.py -l admin -p password -s satellite.example.com

@@ -237,7 +237,7 @@ def configure_puppet():
 
 def initial_puppet_run():
 	cmd = "/usr/bin/puppet agent -t -v --onetime --waitforcert 60"
-	print log.WARN + "INFO: start initial Puppet run. Please visit your Satellite or Capsule server to sign the Puppet client cert request."
+	print log.WARN + "INFO: start initial Puppet run. Please visit your Satellite or Capsule server to sign the Puppet client cert request unless you configured Puppet autosign feature. Please ignore the following error message 'Warning: Local environment: production doesn't match server specified node environment [...]'"
 	try:
 		subprocess.call(cmd, shell=True, stdout=subprocess.PIPE)
 		print log.INFO + "INFO: successfully performed initial Puppet run."
@@ -256,6 +256,7 @@ parser.add_option("-g", "--hostgroup", dest="hostgroup", help="Label of the Host
 parser.add_option("-L", "--location", dest="location", help="Label of the Location in Satellite that the host is to be associated with", metavar="LOCATION")
 parser.add_option("-o", "--organization", dest="organization", help="Label of the Organization in Satellite that the host is to be associated with", metavar="ORGANIZATION")
 parser.add_option("-u", "--unattended", dest="unattended", action="store_true", help="Start unattended installation.")
+parser.add_option("-U", "--update", dest="update", action="store_true", help="Performs yum update -y.")
 parser.add_option("-v", "--verbose", dest="verbose", action="store_true", help="Verbose output")
 (options, args) = parser.parse_args()
 
@@ -283,6 +284,11 @@ if options.unattended:
     UNATTENDED=True
 else:
     UNATTENDED=False
+
+if options.update:
+    UPDATE=True
+else:
+    UPDATE=False
 
 if not PASSWORD:
         PASSWORD = getpass.getpass("%s's password:" % LOGIN)
@@ -384,7 +390,7 @@ print log.WARN + "Capsule:\t" + log.END + CAPSULE
 print log.WARN + "Activationkey:\t" + log.END + ACTIVATIONKEY
 print log.WARN + "Hostgroup:\t" + log.END + HOSTGROUP
 
-if UNATTENDED:
+if UNATTENDED and SAT6_FQDN and CAPSULE and ORGANIZATION and LOCATION and ACTIVATIONKEY and HOSTGROUP:
 	# Registering system at give destination
         print log.INFO + "INFO: Registering client at your destination " + CAPSULE
         ORGLABEL=return_organization_label(ORGANIZATION)
@@ -402,6 +408,11 @@ if UNATTENDED:
 	
 	# Start Puppet agent client cert request
 	initial_puppet_run()
+	
+	# Start update of the whole server if Option "-U" was given.
+	if UPDATE:
+		print log.INFO + "INFO: Will now try to update your system. This can take some time..." + log.END
+                update_system()
 	
 	print log.INFO + "FINISHED: registration and configuration of your Satellite 6 client successfullly finished." + log.END
 	sys.exit(0)
@@ -430,14 +441,16 @@ if SUMMARY == "y" or SUMMARY == "Y":
 	# Start Puppet agent client cert request
 	initial_puppet_run()
 	
-	# Updating the box?
-	UPDATE = raw_input(log.INFO + "Do you want to Update your system (y/n)? : " + log.END)
-	if UPDATE == "y" or UPDATE == "Y":
-		print log.INFO + "INFO: Will now try to update your system..." + log.END
-		update_system()
-	if UPDATE == "n" or UPDATE == "N":
-		print log.INFO + "INFO: You can update your system later." + log.END		
+	# Start update of the whole server if Option "-U" was given.
+	if UPDATE:
+		print log.INFO + "INFO: Will now try to update your system. This can take some time..." + log.END
+                update_system()
+	else:
+		print log.INFO + "INFO: it is recommended to update your system to the latest package versions. Please perform a 'yum update -y' after this script is finished."
 	
+	print log.INFO + "FINISHED: registration and configuration of your Satellite 6 client successfullly finished." + log.END
+	sys.exit(0)
+
 if SUMMARY == "n" or SUMMARY == "N":
 	print log.WARN + "INFO: Will exit now. Pelase re-run this script." + log.END
 	sys.exit(0)
