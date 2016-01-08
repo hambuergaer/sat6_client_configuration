@@ -192,7 +192,7 @@ def update_system():
 		print log.ERROR + "ERROR: failed to update your system Please check /var/log/messages for more informations." + log.END
 
 def check_subscription_manager_status():
-	cmd_check = '/usr/sbin/subscription-manager list | grep -e Subskribiert -e Subscribed'
+	cmd_check = '/usr/sbin/subscription-manager status'
 	if subprocess.call(cmd_check, shell=True, stdout=subprocess.PIPE) == 0:
 		return 0
 	else:
