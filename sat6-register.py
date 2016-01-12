@@ -40,6 +40,8 @@ from datetime import datetime
 from optparse import OptionParser
 from uuid import getnode
 
+CURRENT_DATE = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
+
 HOSTNAME  = platform.node()
 HEXMAC    = hex(getnode())
 NOHEXMAC  = HEXMAC[2:]
@@ -162,7 +164,6 @@ def return_capsule_name():
 
 def return_activation_key_name(orgid):
 	myurl = 'https://' + SAT6_FQDN + '/katello/api/v2/organizations/' + str(orgid) + '/activation_keys/'
-	print myurl
 	activationkeys = get_json(myurl)
 	activationkey_name = []
 	for activationkey in activationkeys['results']:
@@ -199,13 +200,13 @@ def check_subscription_manager_status():
 		return 1
 
 def install_needed_packages():
-	cmd_yum = "/usr/bin/yum install -y facter katello-agent puppet --nogpgcheck"
-	print log.INFO + "INFO: Installing some needed packages: facter katello-agent puppet" + log.END
+	cmd_yum = "/usr/bin/yum install -y katello-agent --nogpgcheck"
+	print log.INFO + "INFO: Installing katello-agent." + log.END
         try:
                 subprocess.call(cmd_yum, shell=True, stdout=subprocess.PIPE)
-                print log.INFO + "INFO: Packages sucessfully installed." + log.END
+                print log.INFO + "INFO: katello-agent sucessfully installed." + log.END
 	except:
-                print log.ERROR + "ERROR: failed to install packages. EXIT." + log.END
+                print log.ERROR + "ERROR: failed to install katello-agent. EXIT." + log.END
                 sys.exit(1)
 
 def create_new_host(hostgroup,location,organization):
@@ -217,6 +218,27 @@ def create_new_host(hostgroup,location,organization):
 	print log.INFO + "INFO: Calling Satellite API to create a host entry assoicated with the group, org & location" + log.END
 	post_json(myurl,jsondata)
 	print log.INFO + "INFO: Successfully created host %s" % HOSTNAME + log.END
+
+def remove_existing_puppet_agent():
+	cmd_puppet_erase_01 = "/usr/bin/yum erase puppet -y"
+	cmd_puppet_erase_02 = "/usr/bin/rm -Rf /var/lib/puppet/"
+	print log.INFO + "INFO: Removing existing Puppet agent and its configuration." + log.END
+	try:
+                subprocess.call(cmd_puppet_erase_01, shell=True, stdout=subprocess.PIPE)
+                subprocess.call(cmd_puppet_erase_02, shell=True, stdout=subprocess.PIPE)
+	except:
+                print log.ERROR + "ERROR: failed to clean Puppet agent. EXIT." + log.END
+                sys.exit(1)
+
+def install_puppet_agent():
+	cmd_yum = "/usr/bin/yum install -y puppet --nogpgcheck"
+	print log.INFO + "INFO: Installing Puppet agent." + log.END
+        try:
+                subprocess.call(cmd_yum, shell=True, stdout=subprocess.PIPE)
+                print log.INFO + "INFO: Puppet agent sucessfully installed." + log.END
+	except:
+                print log.ERROR + "ERROR: failed to install Puppet agent. EXIT." + log.END
+                sys.exit(1)
 
 def configure_puppet():
 	cmd_puppet_01 = "/usr/bin/puppet config set --section agent report true"
@@ -258,6 +280,7 @@ parser.add_option("-g", "--hostgroup", dest="hostgroup", help="Label of the Host
 parser.add_option("-L", "--location", dest="location", help="Label of the Location in Satellite that the host is to be associated with", metavar="LOCATION")
 parser.add_option("-o", "--organization", dest="organization", help="Label of the Organization in Satellite that the host is to be associated with", metavar="ORGANIZATION")
 parser.add_option("-u", "--unattended", dest="unattended", action="store_true", help="Start unattended installation.")
+parser.add_option("-P", "--puppet", dest="puppet", action="store_true", help="Configure Puppet agent and delete old Puppet configuration.")
 parser.add_option("-U", "--update", dest="update", action="store_true", help="Performs yum update -y.")
 parser.add_option("-v", "--verbose", dest="verbose", action="store_true", help="Verbose output")
 (options, args) = parser.parse_args()
@@ -292,6 +315,11 @@ if options.update:
 else:
     UPDATE=False
 
+if options.puppet:
+    PUPPET=True
+else:
+    PUPPET=False
+
 if not PASSWORD:
         PASSWORD = getpass.getpass("%s's password:" % LOGIN)
 
@@ -306,6 +334,8 @@ if VERBOSE:
     print "LOCATION - %s" % LOCATION
     print "SAT6_FQDN - %s" % SAT6_FQDN
     print "ACTIVATIONKEY - %s" % ACTIVATIONKEY
+    print "PUPPET - %s" % PUPPET
+    print "UPDATE - %s" % UPDATE
 
 
 ################################## MAIN ##################################
@@ -404,12 +434,13 @@ if UNATTENDED and SAT6_FQDN and CAPSULE and ORGANIZATION and LOCATION and ACTIVA
 
 	# Install needed packages
 	install_needed_packages()
-
-        # Configure Puppet agent
-        configure_puppet()
 	
-	# Start Puppet agent client cert request
-	initial_puppet_run()
+        # Configure Puppet agent
+        if PUPPET:
+		remove_existing_puppet_agent()
+		install_puppet_agent()
+		configure_puppet()
+		initial_puppet_run()
 	
 	# Start update of the whole server if Option "-U" was given.
 	if UPDATE:
@@ -437,11 +468,12 @@ if SUMMARY == "y" or SUMMARY == "Y":
 	# Install needed packages
 	install_needed_packages()
 	
-	# Configure Puppet agent
-	configure_puppet()
-	
-	# Start Puppet agent client cert request
-	initial_puppet_run()
+        # Configure Puppet agent
+        if PUPPET:
+		remove_existing_puppet_agent()
+		install_puppet_agent()
+		configure_puppet()
+		initial_puppet_run()
 	
 	# Start update of the whole server if Option "-U" was given.
 	if UPDATE:
