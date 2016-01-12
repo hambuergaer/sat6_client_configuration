@@ -15,8 +15,6 @@ This script was inspired by https://github.com/sideangleside/sat6-bootstrap
 #Usage:
 You need at least the "-s" and "-l" option to run the script.
 ```
-./sat6-register.py --help
-
 Usage: sat6-register.py [options]
 
 Options:
@@ -41,6 +39,8 @@ Options:
                         Label of the Organization in Satellite that the host
                         is to be associated with
   -u, --unattended      Start unattended installation.
+  -P, --puppet          Configure Puppet agent and delete old Puppet
+                        configuration.
   -U, --update          Performs yum update -y.
   -v, --verbose         Verbose output
 
