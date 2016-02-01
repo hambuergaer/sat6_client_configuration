@@ -42,7 +42,7 @@ from uuid import getnode
 
 CURRENT_DATE = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
-HOSTNAME  = platform.node()
+HOSTNAME  = platform.node().split(".")[0]
 HEXMAC    = hex(getnode())
 NOHEXMAC  = HEXMAC[2:]
 MAC       = NOHEXMAC.zfill(13)[0:12]
@@ -221,7 +221,7 @@ def create_new_host(hostgroup,location,organization):
 
 def remove_existing_puppet_agent():
 	cmd_puppet_erase_01 = "/usr/bin/yum erase puppet -y"
-	cmd_puppet_erase_02 = "/usr/bin/rm -Rf /var/lib/puppet/"
+	cmd_puppet_erase_02 = "/bin/rm -Rf /var/lib/puppet/"
 	print log.INFO + "INFO: Removing existing Puppet agent and its configuration." + log.END
 	try:
                 subprocess.call(cmd_puppet_erase_01, shell=True, stdout=subprocess.PIPE)
