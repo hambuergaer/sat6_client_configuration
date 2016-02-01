@@ -260,7 +260,7 @@ def configure_puppet():
                 sys.exit(1)	
 
 def initial_puppet_run():
-	cmd = "/usr/bin/puppet agent -t -v --onetime --waitforcert 10"
+	cmd = "/usr/bin/puppet agent -t -v --onetime --waitforcert 60"
 	print log.WARN + "INFO: start initial Puppet run. Please visit your Satellite or Capsule server to sign the Puppet client cert request unless you configured Puppet autosign feature. Please ignore the following error message 'Warning: Local environment: production doesn't match server specified node environment [...]'"
 	try:
 		subprocess.call(cmd, shell=True, stdout=subprocess.PIPE)
