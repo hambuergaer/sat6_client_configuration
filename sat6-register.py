@@ -256,6 +256,7 @@ def configure_puppet():
                 subprocess.call(cmd_puppet_04, shell=True, stdout=subprocess.PIPE)
                 subprocess.call(cmd_puppet_05, shell=True, stdout=subprocess.PIPE)
                 subprocess.call(cmd_puppet_06, shell=True, stdout=subprocess.PIPE)
+                subprocess.call(cmd_puppet_07, shell=True, stdout=subprocess.PIPE)
 		print log.INFO + "INFO: Puppet client configuration successfully changed." + log.END
 	except:
                 print log.ERROR + "ERROR: failed to configure Puppet agent. EXIT." + log.END
