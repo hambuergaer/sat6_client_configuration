@@ -40,6 +40,8 @@ from datetime import datetime
 from optparse import OptionParser
 from uuid import getnode
 
+devnull = open(os.devnull, 'w')
+
 CURRENT_DATE = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
 HOSTNAME  = platform.node().split(".")[0]
@@ -225,8 +227,8 @@ def remove_existing_puppet_agent():
 	cmd_puppet_erase_02 = "/bin/rm -Rf /var/lib/puppet/"
 	print log.INFO + "INFO: Removing existing Puppet agent and its configuration." + log.END
 	try:
-                subprocess.call(cmd_puppet_erase_01, shell=True, stdout=subprocess.PIPE)
-                subprocess.call(cmd_puppet_erase_02, shell=True, stdout=subprocess.PIPE)
+                subprocess.call(cmd_puppet_erase_01, shell=True, stdout=subprocess.PIPE, stderr=devnull)
+                subprocess.call(cmd_puppet_erase_02, shell=True, stdout=subprocess.PIPE, stderr=devnull)
 	except:
                 print log.ERROR + "ERROR: failed to clean Puppet agent. EXIT." + log.END
                 sys.exit(1)
@@ -263,7 +265,7 @@ def configure_puppet():
                 sys.exit(1)	
 
 def initial_puppet_run():
-	cmd = "/usr/bin/puppet agent -t -v --onetime --waitforcert 60"
+	cmd = "/usr/bin/puppet agent -t -v --onetime --waitforcert 10"
 	print log.WARN + "INFO: start initial Puppet run. Please visit your Satellite or Capsule server to sign the Puppet client cert request unless you configured Puppet autosign feature. Please ignore the following error message 'Warning: Local environment: production doesn't match server specified node environment [...]'"
 	try:
 		subprocess.call(cmd, shell=True, stdout=subprocess.PIPE)
