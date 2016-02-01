@@ -43,6 +43,7 @@ from uuid import getnode
 CURRENT_DATE = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
 HOSTNAME  = platform.node().split(".")[0]
+PUPPETFQDN= platform.node()
 HEXMAC    = hex(getnode())
 NOHEXMAC  = HEXMAC[2:]
 MAC       = NOHEXMAC.zfill(13)[0:12]
@@ -247,6 +248,7 @@ def configure_puppet():
 	cmd_puppet_04 = "/usr/bin/puppet config set --section agent listen true"
 	cmd_puppet_05 = "/usr/bin/puppet config set --section agent ca_server " + str(CAPSULE)
 	cmd_puppet_06 = "/usr/bin/puppet config set --section agent server " + str(CAPSULE)
+	cmd_puppet_07 = "/usr/bin/puppet config set --section agent certname " + str(PUPPETFQDN)
 	try:
                 subprocess.call(cmd_puppet_01, shell=True, stdout=subprocess.PIPE)
                 subprocess.call(cmd_puppet_02, shell=True, stdout=subprocess.PIPE)
